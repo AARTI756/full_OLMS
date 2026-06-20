@@ -1,0 +1,469 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  ADMIN
+  HR
+  RECRUITER
+  FINANCE
+  APPROVER
+}
+
+enum CandidateStatus {
+  NEW
+  SCREENING
+  INTERVIEW
+  OFFERED
+  HIRED
+  REJECTED
+}
+
+enum OfferStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  RELEASED
+  ACCEPTED
+  DECLINED
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  SYSTEM
+  OFFER
+  CANDIDATE
+  APPROVAL
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum AttachmentType {
+  RESUME
+  OFFER_LETTER
+  DOCUMENT
+}
+
+enum CompensationCategory {
+  BASE
+  VARIABLE
+  JOINING_BONUS
+  RETENTION_BONUS
+}
+
+model Role {
+  id          String  @id @default(uuid())
+  name        RoleName @unique
+  description String?
+  users       User[]
+}
+
+model Department {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  description String?
+  users       User[]
+  candidates  Candidate[]
+  offers      Offer[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model AppSetting {
+  id                          String    @id @default(uuid())
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  companyName                 String
+  companyWebsite              String?
+  companyEmail                String?
+  companyPhone                String?
+  companyAddress              String?
+  brandingLogoUrl             String?
+  brandingPrimaryColor        String?
+  brandingSecondaryColor      String?
+  smtpHost                    String?
+  smtpPort                    Int?
+  smtpUser                    String?
+  smtpFromName                String?
+  smtpFromEmail               String?
+  smtpSecure                  Boolean   @default(true)
+  smtpPasswordEncrypted       String?
+  notificationOfferEmail        Boolean   @default(true)
+  notificationCandidateEmail    Boolean   @default(true)
+  notificationSystemAlerts      Boolean   @default(true)
+  notificationDigestFrequency   String    @default("daily")
+  offerApprovalRequired         Boolean   @default(true)
+  offerAutoRelease              Boolean   @default(false)
+  automationEmailReminders      Boolean   @default(true)
+  automationExpiryThresholdDays Int       @default(3)
+  automationApprovalReminderHours Int     @default(24)
+  automationStaleCandidateDays  Int       @default(14)
+  automationCleanupDays         Int       @default(90)
+  securityRequireStrongPassword Boolean   @default(true)
+  securityEnableTwoFactor       Boolean   @default(false)
+  securitySessionTimeoutMinutes Int       @default(60)
+  audits                        SettingsAudit[]
+}
+
+model EmailLog {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  recipient   String
+  subject     String
+  status      String
+  eventKey    String?
+  entityId    String?
+  details     Json?
+
+  @@index([recipient])
+  @@index([eventKey])
+  @@index([entityId])
+}
+
+model SettingsAudit {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+  action        String
+  details       Json?
+  performedBy   User     @relation(fields: [performedById], references: [id], onDelete: Restrict)
+  performedById String
+  setting       AppSetting @relation(fields: [settingId], references: [id], onDelete: Restrict)
+  settingId     String
+
+  @@index([performedById])
+  @@index([settingId])
+}
+
+model User {
+  id               String              @id @default(uuid())
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  email            String              @unique
+  name             String
+  phone            String?
+  hashedPassword   String
+  role             Role                @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  roleId           String
+  department       Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  departmentId     String?
+  isActive         Boolean             @default(true)
+  refreshToken     String?
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
+  candidates       Candidate[]         @relation("CandidateOwner")
+  approvals        Approval[]          @relation("ApprovalOwner")
+  activities       Activity[]
+  notifications    Notification[]
+  notificationAudits NotificationAudit[]
+  offersCreated    Offer[]             @relation("OfferCreator")
+  templatesCreated OfferTemplate[]
+  templateVersionsCreated TemplateVersion[] @relation("TemplateVersionCreator")
+  attachments      Attachment[]
+  candidateNotes   CandidateNote[]
+  candidateResumes CandidateResume[]
+  candidateActivities CandidateActivity[]
+  settingsAudits   SettingsAudit[]
+
+  @@index([roleId])
+  @@index([departmentId])
+  @@index([resetPasswordToken])
+  @@index([resetPasswordExpires])
+}
+
+model Candidate {
+  id               String          @id @default(uuid())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  fullName         String
+  email            String          @unique
+  phone            String
+  role             String
+  department       Department      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  departmentId     String
+  experienceYears  Int
+  expectedCtc      Float
+  currentCtc       Float
+  noticePeriodDays Int
+  status           CandidateStatus @default(NEW)
+  recruiter        User?           @relation("CandidateOwner", fields: [recruiterId], references: [id], onDelete: SetNull)
+  recruiterId      String?
+  location         String
+  skills           String[]
+  resumeUrl        String?
+  notes            String?
+  offerHistory     Offer[]
+  activities       Activity[]
+  attachments      Attachment[]
+  candidateNotes   CandidateNote[]
+  candidateResumes CandidateResume[]
+  candidateActivities CandidateActivity[]
+
+  @@index([departmentId])
+  @@index([recruiterId])
+  @@index([status])
+}
+
+enum CandidateActivityType {
+  CREATED
+  UPDATED
+  RESUME_UPLOADED
+  NOTE_ADDED
+  NOTE_UPDATED
+  NOTE_DELETED
+  STATUS_CHANGED
+  DELETED
+}
+
+model CandidateNote {
+  id          String      @id @default(uuid())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  content     String
+  author      User        @relation(fields: [authorId], references: [id])
+  authorId    String
+  candidate   Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidateId String
+
+  @@index([candidateId])
+  @@index([authorId])
+}
+
+model CandidateResume {
+  id            String      @id @default(uuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  fileName      String
+  fileUrl       String
+  storagePath   String?
+  mimeType      String
+  size          Int
+  uploadedBy    User        @relation(fields: [uploadedById], references: [id])
+  uploadedById  String
+  candidate     Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidateId   String
+
+  @@index([candidateId])
+  @@index([uploadedById])
+}
+
+model CandidateActivity {
+  id          String               @id @default(uuid())
+  createdAt   DateTime             @default(now())
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId      String
+  candidate   Candidate            @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidateId String
+  action      CandidateActivityType
+  details     String
+
+  @@index([candidateId])
+  @@index([userId])
+}
+
+model OfferTemplate {
+  id              String             @id @default(uuid())
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  title           String
+  description     String?
+  content         String
+  isActive        Boolean            @default(true)
+  isArchived      Boolean            @default(false)
+  isDraft         Boolean            @default(false)
+  createdBy       User               @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdById     String
+  category        TemplateCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryId      String?
+  latestVersion   TemplateVersion?   @relation("OfferTemplateLatestVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)
+  latestVersionId String? @unique
+  offers          Offer[]
+  versions        TemplateVersion[]  @relation("OfferTemplateVersions")
+
+  @@index([categoryId])
+  @@index([createdById])
+  @@index([isActive, isArchived, isDraft])
+}
+
+model TemplateCategory {
+  id          String         @id @default(uuid())
+  name        String         @unique
+  description String?
+  templates   OfferTemplate[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model TemplateVersion {
+  id           String        @id @default(uuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  versionNumber Int
+  title        String
+  content      String
+  summary      String?
+  template     OfferTemplate @relation("OfferTemplateVersions", fields: [templateId], references: [id], onDelete: Cascade)
+  templateId   String
+  createdBy    User          @relation("TemplateVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdById  String
+  latestForTemplate OfferTemplate? @relation("OfferTemplateLatestVersion")
+  offers       Offer[]
+
+  @@index([templateId])
+  @@index([createdById])
+  @@unique([templateId, versionNumber])
+}
+
+model Offer {
+  id                     String                @id @default(uuid())
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  candidate              Candidate             @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  candidateId            String
+  creator                User                  @relation("OfferCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdById            String
+  template               OfferTemplate?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  templateId             String?
+  templateVersion        TemplateVersion?      @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
+  templateVersionId      String?
+  title                  String
+  department             Department            @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  departmentId           String
+  designation            String
+  status                 OfferStatus           @default(DRAFT)
+  baseSalary             Float
+  variablePay            Float
+  joiningBonus           Float
+  retentionBonus         Float
+  probationPeriodMonths  Int
+  offerDate              DateTime
+  validUntil             DateTime
+  totalCtc               Float
+  version                Int                   @default(1)
+  approvalComments       String?
+  approvals              Approval[]
+  activities             Activity[]
+  attachments            Attachment[]
+  compensationStructure  CompensationStructure?
+
+  @@index([candidateId])
+  @@index([createdById])
+  @@index([templateId])
+  @@index([templateVersionId])
+  @@index([departmentId])
+  @@index([status])
+  @@index([offerDate])
+  @@index([validUntil])
+}
+
+model Approval {
+  id           String           @id @default(uuid())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  offer        Offer            @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  offerId      String
+  approver     User             @relation("ApprovalOwner", fields: [approverId], references: [id], onDelete: Restrict)
+  approverId   String
+  decision     ApprovalDecision @default(PENDING)
+  comments     String?
+  decidedAt    DateTime?
+
+  @@index([offerId])
+  @@index([approverId])
+}
+
+model Activity {
+  id          String      @id @default(uuid())
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId      String
+  candidate   Candidate?  @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  candidateId String?
+  offer       Offer?      @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  offerId     String?
+  action      String
+  details     String?
+
+  @@index([userId])
+  @@index([candidateId])
+  @@index([offerId])
+}
+
+model Notification {
+  id                String             @id @default(uuid())
+  createdAt         DateTime           @default(now())
+  user              User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId            String
+  type              NotificationType
+  title             String
+  message           String
+  status            NotificationStatus @default(UNREAD)
+  entityId          String?
+  metadata          Json?
+  notificationAudits NotificationAudit[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([entityId])
+}
+
+model NotificationAudit {
+  id            String      @id @default(uuid())
+  createdAt     DateTime    @default(now())
+  notification  Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  notificationId String?
+  action        String
+  details       Json?
+  performedBy   User        @relation(fields: [performedById], references: [id], onDelete: Restrict)
+  performedById String
+
+  @@index([notificationId])
+  @@index([performedById])
+}
+
+model Attachment {
+  id          String         @id @default(uuid())
+  createdAt   DateTime       @default(now())
+  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownerId     String
+  type        AttachmentType
+  url         String
+  fileName    String
+  size        Int
+  candidate   Candidate?     @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  candidateId String?
+  offer       Offer?         @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  offerId     String?
+
+  @@index([ownerId])
+  @@index([candidateId])
+  @@index([offerId])
+}
+
+model CompensationStructure {
+  id              String  @id @default(uuid())
+  offer           Offer   @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  offerId         String  @unique
+  baseSalary      Float
+  variablePay     Float
+  joiningBonus    Float
+  retentionBonus  Float
+  pfContribution  Float
+  taxEstimate     Float
+  grossAnnual     Float
+  netAnnual       Float
+}

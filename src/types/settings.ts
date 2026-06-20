@@ -1,0 +1,66 @@
+export type NotificationDigestFrequency = 'instant' | 'daily' | 'weekly';
+
+export interface SettingsResponse {
+  id: string;
+  companyName: string;
+  companyWebsite?: string | null;
+  companyEmail?: string | null;
+  companyPhone?: string | null;
+  companyAddress?: string | null;
+  brandingLogoUrl?: string | null;
+  brandingPrimaryColor?: string | null;
+  brandingSecondaryColor?: string | null;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpFromName?: string | null;
+  smtpFromEmail?: string | null;
+  smtpSecure: boolean;
+  smtpPasswordConfigured: boolean;
+  notificationOfferEmail: boolean;
+  notificationCandidateEmail: boolean;
+  notificationSystemAlerts: boolean;
+  notificationDigestFrequency: NotificationDigestFrequency;
+  offerApprovalRequired: boolean;
+  offerAutoRelease: boolean;
+  automationEmailReminders: boolean;
+  automationExpiryThresholdDays: number;
+  automationApprovalReminderHours: number;
+  automationStaleCandidateDays: number;
+  automationCleanupDays: number;
+  securityRequireStrongPassword: boolean;
+  securityEnableTwoFactor: boolean;
+  securitySessionTimeoutMinutes: number;
+}
+
+export type SettingsUpdateInput = {
+  companyName?: string;
+  companyWebsite?: string | null;
+  companyEmail?: string | null;
+  companyPhone?: string | null;
+  companyAddress?: string | null;
+  brandingLogoUrl?: string | null;
+  brandingPrimaryColor?: string | null;
+  brandingSecondaryColor?: string | null;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpFromName?: string | null;
+  smtpFromEmail?: string | null;
+  smtpSecure?: boolean;
+  smtpPassword?: string | null;
+  notificationOfferEmail?: boolean;
+  notificationCandidateEmail?: boolean;
+  notificationSystemAlerts?: boolean;
+  notificationDigestFrequency?: NotificationDigestFrequency;
+  offerApprovalRequired?: boolean;
+  offerAutoRelease?: boolean;
+  automationEmailReminders?: boolean;
+  automationExpiryThresholdDays?: number;
+  automationApprovalReminderHours?: number;
+  automationStaleCandidateDays?: number;
+  automationCleanupDays?: number;
+  securityRequireStrongPassword?: boolean;
+  securityEnableTwoFactor?: boolean;
+  securitySessionTimeoutMinutes?: number | null;
+};
